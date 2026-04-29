@@ -36,8 +36,40 @@ services:
     networks:
       - investment-network
 
+  mysql-settlement:
+    image: mysql:8.0
+    container_name: mysql-settlement-service
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: settlement_db
+      MYSQL_USER: settlement_user
+      MYSQL_PASSWORD: settlement_pass
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_settlement_data:/var/lib/mysql
+    networks:
+      - investment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "settlement_user", "-psettlement_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack-investment
+    ports:
+      - "4566:4566"
+    environment:
+      SERVICES: sqs,sns,s3,eventbridge
+      DEFAULT_REGION: us-east-1
+    networks:
+      - investment-network
+
 volumes:
   mysql_order_data:
+  mysql_settlement_data:
 
 networks:
   investment-network:
