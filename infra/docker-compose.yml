@@ -11,6 +11,34 @@ services:
       - "3307:3306"
     volumes:
       - mysql_order_data:/var/lib/mysql
+    networks:
+      - investment-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "order_user", "-porder_pass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  order-service:
+    build:
+      context: ../backend/order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    environment:
+      DB_URL: jdbc:mysql://mysql-order:3306/order_db
+      DB_USERNAME: order_user
+      DB_PASSWORD: order_pass
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql-order:
+        condition: service_healthy
+    networks:
+      - investment-network
 
 volumes:
   mysql_order_data:
+
+networks:
+  investment-network:
+    driver: bridge
