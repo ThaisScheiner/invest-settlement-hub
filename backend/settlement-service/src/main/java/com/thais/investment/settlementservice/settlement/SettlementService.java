@@ -1,5 +1,6 @@
 package com.thais.investment.settlementservice.settlement;
 
+import com.thais.investment.settlementservice.exception.SettlementNotFoundException;
 import com.thais.investment.settlementservice.messaging.OrderCreatedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class SettlementService {
@@ -53,5 +55,26 @@ public class SettlementService {
                 netAmount,
                 fees
         );
+    }
+
+    public SettlementResponse findById(String id) {
+        Settlement settlement = repository.findById(id)
+                .orElseThrow(() -> new SettlementNotFoundException("Settlement id not found: " + id));
+
+        return SettlementResponse.fromEntity(settlement);
+    }
+
+    public SettlementResponse findByOrderId(String orderId) {
+        Settlement settlement = repository.findByOrderId(orderId)
+                .orElseThrow(() -> new SettlementNotFoundException("Settlement orderId not found: " + orderId));
+
+        return SettlementResponse.fromEntity(settlement);
+    }
+
+    public List<SettlementResponse> findByCustomerId(String customerId) {
+        return repository.findByCustomerId(customerId)
+                .stream()
+                .map(SettlementResponse::fromEntity)
+                .toList();
     }
 }
