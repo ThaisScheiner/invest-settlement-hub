@@ -26,7 +26,7 @@ public class SettlementService {
         log.info("Processing settlement for orderId={}", event.orderId());
 
         if (repository.existsByOrderId(event.orderId())) {
-            log.warn("Settlement already exists for orderId={}", event.orderId());
+            log.warn("Settlement already exists for orderId={}. Skipping duplicated event.", event.orderId());
             return;
         }
 
@@ -47,14 +47,20 @@ public class SettlementService {
                 .status(SettlementStatus.COMPLETED)
                 .build();
 
-        repository.save(settlement);
+        try {
+            repository.save(settlement);
+            log.info(
+                    "Settlement completed for orderId={}, netAmount={}, fees={}",
+                    event.orderId(),
+                    netAmount,
+                    fees
+            );
 
-        log.info(
-                "Settlement completed for orderId={}, netAmount={}, fees={}",
-                event.orderId(),
-                netAmount,
-                fees
-        );
+        } catch (Exception exception) {
+            log.error("Error saving settlement for orderId={}", event.orderId(), exception);
+            throw exception;
+        }
+
     }
 
     public SettlementResponse findById(String id) {

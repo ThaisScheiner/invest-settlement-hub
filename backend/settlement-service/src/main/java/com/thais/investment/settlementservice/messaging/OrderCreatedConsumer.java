@@ -55,21 +55,35 @@ public class OrderCreatedConsumer {
             List<Message> messages = sqsClient.receiveMessage(request).messages();
 
             for (Message message : messages) {
-                log.info("Received order event from SQS: messageId={}", message.messageId());
+                try {
+                    log.info("Received order event from SQS: messageId={}", message.messageId());
 
-                OrderCreatedEvent event = objectMapper.readValue(
-                        message.body(),
-                        OrderCreatedEvent.class
-                );
+                    OrderCreatedEvent event = objectMapper.readValue(
+                            message.body(),
+                            OrderCreatedEvent.class
+                    );
 
-                settlementService.process(event);
+                    settlementService.process(event);
 
-                sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                        .queueUrl(queueUrl)
-                        .receiptHandle(message.receiptHandle())
-                        .build());
+                    sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                            .queueUrl(queueUrl)
+                            .receiptHandle(message.receiptHandle())
+                            .build());
 
-                log.info("Message deleted from SQS: messageId={}", message.messageId());
+                    log.info("Message deleted from SQS: messageId={}", message.messageId());
+
+                } catch (Exception exception) {
+                    log.error("Invalid message received. Deleting messageId={} to avoid infinite retry. Body={}",
+                            message.messageId(),
+                            message.body(),
+                            exception
+                    );
+
+                    sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                            .queueUrl(queueUrl)
+                            .receiptHandle(message.receiptHandle())
+                            .build());
+                }
             }
         } catch (Exception exception) {
             log.error("Error consuming SQS messages", exception);
