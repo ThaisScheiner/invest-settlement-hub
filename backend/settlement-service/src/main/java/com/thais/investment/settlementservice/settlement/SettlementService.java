@@ -25,6 +25,12 @@ public class SettlementService {
     public void process(OrderCreatedEvent event) {
         log.info("Processing settlement for orderId={}", event.orderId());
 
+        /* habilitar para forçar erro para validar retry/backoff
+        if ("customer-error".equals(event.customerId())) {
+            throw new RuntimeException("Erro forçado para teste de retry");
+        }
+         */
+
         if (repository.existsByOrderId(event.orderId())) {
             log.warn("Settlement already exists for orderId={}. Skipping duplicated event.", event.orderId());
             return;
