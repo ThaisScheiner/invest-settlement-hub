@@ -2,6 +2,7 @@ package com.thais.investment.settlementservice.settlement;
 
 import com.thais.investment.settlementservice.exception.SettlementNotFoundException;
 import com.thais.investment.settlementservice.messaging.OrderCreatedEvent;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -22,17 +23,24 @@ public class SettlementService {
         this.repository = repository;
     }
 
+    @CircuitBreaker(name = "settlementProcessor", fallbackMethod = "fallbackProcess")
     public void process(OrderCreatedEvent event) {
         log.info("Processing settlement for orderId={}", event.orderId());
 
-        /* habilitar para forçar erro para validar retry/backoff
-        if ("customer-error".equals(event.customerId())) {
-            throw new RuntimeException("Erro forçado para teste de retry");
+        /*
+
+        //Habilite quando quiser testar falha do circuit breaker:
+
+        if ("customer-circuit".equals(event.customerId())) {
+            throw new RuntimeException("Erro forçado para testar circuit breaker");
         }
-         */
+        */
 
         if (repository.existsByOrderId(event.orderId())) {
-            log.warn("Settlement already exists for orderId={}. Skipping duplicated event.", event.orderId());
+            log.warn(
+                    "Settlement already exists for orderId={}. Skipping duplicated event.",
+                    event.orderId()
+            );
             return;
         }
 
@@ -55,6 +63,7 @@ public class SettlementService {
 
         try {
             repository.save(settlement);
+
             log.info(
                     "Settlement completed for orderId={}, netAmount={}, fees={}",
                     event.orderId(),
@@ -66,7 +75,17 @@ public class SettlementService {
             log.error("Error saving settlement for orderId={}", event.orderId(), exception);
             throw exception;
         }
+    }
 
+    public void fallbackProcess(OrderCreatedEvent event, Throwable throwable) {
+        log.error(
+                "Circuit breaker fallback triggered for orderId={}. Reason={}",
+                event.orderId(),
+                throwable.getMessage(),
+                throwable
+        );
+
+        throw new RuntimeException("Settlement processing unavailable", throwable);
     }
 
     public SettlementResponse findById(String id) {
