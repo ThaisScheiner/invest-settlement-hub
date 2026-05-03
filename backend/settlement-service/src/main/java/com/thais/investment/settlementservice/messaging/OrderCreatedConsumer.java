@@ -1,5 +1,6 @@
 package com.thais.investment.settlementservice.messaging;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.thais.investment.settlementservice.settlement.SettlementService;
 import jakarta.annotation.PostConstruct;
@@ -21,6 +22,8 @@ public class OrderCreatedConsumer {
 
     private static final Logger log = LoggerFactory.getLogger(OrderCreatedConsumer.class);
 
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
     private final SettlementService settlementService;
@@ -40,6 +43,8 @@ public class OrderCreatedConsumer {
 
     @PostConstruct
     public void startConsumer() {
+        log.info("Starting SQS consumer for queueUrl={}", queueUrl);
+
         Executors.newSingleThreadScheduledExecutor()
                 .scheduleWithFixedDelay(this::consumeMessages, 5, 5, TimeUnit.SECONDS);
     }
@@ -55,38 +60,102 @@ public class OrderCreatedConsumer {
             List<Message> messages = sqsClient.receiveMessage(request).messages();
 
             for (Message message : messages) {
-                try {
-                    log.info("Received order event from SQS: messageId={}", message.messageId());
+                processMessage(message);
+            }
 
-                    OrderCreatedEvent event = objectMapper.readValue(
-                            message.body(),
-                            OrderCreatedEvent.class
-                    );
+        } catch (Exception exception) {
+            log.error("Error receiving messages from SQS", exception);
+        }
+    }
 
-                    settlementService.process(event);
+    private void processMessage(Message message) {
+        log.info("Received order event from SQS: messageId={}", message.messageId());
 
-                    sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .receiptHandle(message.receiptHandle())
-                            .build());
+        try {
+            OrderCreatedEvent event = objectMapper.readValue(
+                    message.body(),
+                    OrderCreatedEvent.class
+            );
 
-                    log.info("Message deleted from SQS: messageId={}", message.messageId());
+            processWithRetry(event);
 
-                } catch (Exception exception) {
-                    log.error("Invalid message received. Deleting messageId={} to avoid infinite retry. Body={}",
-                            message.messageId(),
-                            message.body(),
-                            exception
-                    );
+            deleteMessage(message);
 
-                    sqsClient.deleteMessage(DeleteMessageRequest.builder()
-                            .queueUrl(queueUrl)
-                            .receiptHandle(message.receiptHandle())
-                            .build());
+            log.info("Message processed and deleted from SQS: messageId={}", message.messageId());
+
+        } catch (JsonProcessingException exception) {
+            log.error(
+                    "Invalid JSON message. Deleting messageId={} to avoid infinite retry. Body={}",
+                    message.messageId(),
+                    message.body(),
+                    exception
+            );
+
+            deleteMessage(message);
+
+        } catch (Exception exception) {
+            log.error(
+                    "Message processing failed after retries. Keeping message for SQS redrive policy. messageId={}",
+                    message.messageId(),
+                    exception
+            );
+        }
+    }
+
+    private void processWithRetry(OrderCreatedEvent event) {
+        RuntimeException lastException = null;
+
+        for (int attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+            try {
+                log.info(
+                        "Processing settlement attempt {}/{} for orderId={}",
+                        attempt,
+                        MAX_RETRY_ATTEMPTS,
+                        event.orderId()
+                );
+
+                settlementService.process(event);
+
+                return;
+
+            } catch (RuntimeException exception) {
+                lastException = exception;
+
+                log.warn(
+                        "Error processing settlement attempt {}/{} for orderId={}",
+                        attempt,
+                        MAX_RETRY_ATTEMPTS,
+                        event.orderId(),
+                        exception
+                );
+
+                if (attempt < MAX_RETRY_ATTEMPTS) {
+                    sleepBeforeNextAttempt(attempt);
                 }
             }
-        } catch (Exception exception) {
-            log.error("Error consuming SQS messages", exception);
         }
+
+        throw lastException;
+    }
+
+    private void sleepBeforeNextAttempt(int attempt) {
+        try {
+            long delaySeconds = attempt;
+
+            log.info("Waiting {} seconds before next retry", delaySeconds);
+
+            TimeUnit.SECONDS.sleep(delaySeconds);
+
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Retry interrupted", exception);
+        }
+    }
+
+    private void deleteMessage(Message message) {
+        sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                .queueUrl(queueUrl)
+                .receiptHandle(message.receiptHandle())
+                .build());
     }
 }
