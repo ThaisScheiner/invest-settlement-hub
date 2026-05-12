@@ -77,6 +77,12 @@ public class OrderCreatedConsumer {
                     OrderCreatedEvent.class
             );
 
+            log.info(
+                    "Processing message: correlationId={}, orderId={}",
+                    event.correlationId(),
+                    event.orderId()
+            );
+
             processWithRetry(event);
 
             deleteMessage(message);

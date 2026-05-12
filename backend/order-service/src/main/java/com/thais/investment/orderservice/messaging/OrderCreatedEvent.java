@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 public record OrderCreatedEvent(
+        String correlationId,
         String orderId,
         String customerId,
         String assetCode,

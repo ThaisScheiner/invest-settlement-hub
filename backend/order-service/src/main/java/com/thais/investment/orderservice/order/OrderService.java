@@ -55,7 +55,10 @@ public class OrderService {
                 savedOrder.getTotalAmount()
         );
 
+        String correlationId = java.util.UUID.randomUUID().toString();
+
         OrderCreatedEvent event = new OrderCreatedEvent(
+                correlationId,
                 savedOrder.getId(),
                 savedOrder.getCustomerId(),
                 savedOrder.getAssetCode(),
@@ -64,6 +67,12 @@ public class OrderService {
                 savedOrder.getUnitPrice(),
                 savedOrder.getTotalAmount(),
                 savedOrder.getCreatedAt()
+        );
+
+        log.info(
+                "Publishing order event: correlationId={}, orderId={}",
+                correlationId,
+                savedOrder.getId()
         );
 
         publisher.publish(event);
