@@ -11,12 +11,12 @@ spring:
         webflux:
           routes:
             - id: order-service
-              uri: http://localhost:8081
+              uri: ${ORDER_SERVICE_URL:http://localhost:8081}
               predicates:
                 - Path=/orders/**
 
             - id: settlement-service
-              uri: http://localhost:8082
+              uri: ${SETTLEMENT_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/settlements/**
 
@@ -40,11 +40,11 @@ management:
 
   zipkin:
     tracing:
-      endpoint: http://localhost:9411/api/v2/spans
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
 
 logging:
   pattern:
     level: "%5p [traceId=%X{traceId}]"
 
 jwt:
-  secret: minha-chave-super-secreta-invest-1234567890
+  secret: ${JWT_SECRET:minha-chave-super-secreta-invest-1234567890}

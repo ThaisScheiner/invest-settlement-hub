@@ -13,28 +13,6 @@ services:
       - mysql_order_data:/var/lib/mysql
     networks:
       - investment-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "order_user", "-porder_pass"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  order-service:
-    build:
-      context: ../backend/order-service
-      dockerfile: Dockerfile
-    container_name: order-service
-    environment:
-      DB_URL: jdbc:mysql://mysql-order:3306/order_db
-      DB_USERNAME: order_user
-      DB_PASSWORD: order_pass
-    ports:
-      - "8081:8081"
-    depends_on:
-      mysql-order:
-        condition: service_healthy
-    networks:
-      - investment-network
 
   mysql-settlement:
     image: mysql:8.0
@@ -50,11 +28,6 @@ services:
       - mysql_settlement_data:/var/lib/mysql
     networks:
       - investment-network
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "settlement_user", "-psettlement_pass"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   localstack:
     image: localstack/localstack:latest
@@ -74,7 +47,7 @@ services:
       - "9411:9411"
     networks:
       - investment-network
-      
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
