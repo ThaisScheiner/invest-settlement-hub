@@ -1,0 +1,10 @@
+{
+  "settlementId": "123",
+  "orderId": "456",
+  "customerId": "customer-1",
+  "assetCode": "PETR4",
+  "netAmount": 299.70,
+  "settlementDate": "2026-05-20",
+  "status": "COMPLETED",
+  "message": "Liquidacao concluida com sucesso"
+}

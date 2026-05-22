@@ -1,6 +1,8 @@
 package com.thais.investment.settlementservice.settlement;
 
 import com.thais.investment.settlementservice.exception.SettlementNotFoundException;
+import com.thais.investment.settlementservice.messaging.NotificationEvent;
+import com.thais.investment.settlementservice.messaging.NotificationEventPublisher;
 import com.thais.investment.settlementservice.messaging.OrderCreatedEvent;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
@@ -18,29 +20,22 @@ public class SettlementService {
     private static final Logger log = LoggerFactory.getLogger(SettlementService.class);
 
     private final SettlementRepository repository;
+    private final NotificationEventPublisher notificationEventPublisher;
 
-    public SettlementService(SettlementRepository repository) {
+    public SettlementService(
+            SettlementRepository repository,
+            NotificationEventPublisher notificationEventPublisher
+    ) {
         this.repository = repository;
+        this.notificationEventPublisher = notificationEventPublisher;
     }
 
-    @CircuitBreaker(name = "settlementProcessor", fallbackMethod = "fallbackProcess")
+    @CircuitBreaker(name = "settlementProcessor", fallbackMethod = "processFallback")
     public void process(OrderCreatedEvent event) {
         log.info("Processing settlement for orderId={}", event.orderId());
 
-        /*
-
-        //Habilite quando quiser testar falha do circuit breaker:
-
-        if ("customer-circuit".equals(event.customerId())) {
-            throw new RuntimeException("Erro forçado para testar circuit breaker");
-        }
-        */
-
         if (repository.existsByOrderId(event.orderId())) {
-            log.warn(
-                    "Settlement already exists for orderId={}. Skipping duplicated event.",
-                    event.orderId()
-            );
+            log.warn("Settlement already exists for orderId={}. Skipping duplicated event.", event.orderId());
             return;
         }
 
@@ -62,7 +57,7 @@ public class SettlementService {
                 .build();
 
         try {
-            repository.save(settlement);
+            Settlement savedSettlement = repository.save(settlement);
 
             log.info(
                     "Settlement completed for orderId={}, netAmount={}, fees={}",
@@ -71,21 +66,37 @@ public class SettlementService {
                     fees
             );
 
+            publishNotification(savedSettlement);
+
         } catch (Exception exception) {
             log.error("Error saving settlement for orderId={}", event.orderId(), exception);
             throw exception;
         }
     }
 
-    public void fallbackProcess(OrderCreatedEvent event, Throwable throwable) {
+    public void processFallback(OrderCreatedEvent event, Throwable throwable) {
         log.error(
-                "Circuit breaker fallback triggered for orderId={}. Reason={}",
+                "Circuit breaker fallback executed for orderId={}. reason={}",
                 event.orderId(),
-                throwable.getMessage(),
-                throwable
+                throwable.getMessage()
         );
 
         throw new RuntimeException("Settlement processing unavailable", throwable);
+    }
+
+    private void publishNotification(Settlement settlement) {
+        NotificationEvent notificationEvent = new NotificationEvent(
+                settlement.getId(),
+                settlement.getOrderId(),
+                settlement.getCustomerId(),
+                settlement.getAssetCode(),
+                settlement.getNetAmount(),
+                settlement.getSettlementDate().toString(),
+                settlement.getStatus().name(),
+                "Liquidacao concluida com sucesso"
+        );
+
+        notificationEventPublisher.publish(notificationEvent);
     }
 
     public SettlementResponse findById(String id) {

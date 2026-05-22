@@ -1,0 +1,43 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: notification-service
+
+aws:
+  region: us-east-1
+
+  sns:
+    endpoint: ${AWS_SNS_ENDPOINT:http://localhost:4566}
+    settlement-completed-topic-arn: ${SETTLEMENT_COMPLETED_TOPIC_ARN:arn:aws:sns:us-east-1:000000000000:settlement-completed-topic}
+
+  sqs:
+    endpoint: ${AWS_SQS_ENDPOINT:http://localhost:4566}
+    notification-queue-url: ${NOTIFICATION_QUEUE_URL:http://localhost:4566/000000000000/notification-queue}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
+  endpoint:
+    prometheus:
+      access: unrestricted
+
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+  tracing:
+    sampling:
+      probability: 1.0
+
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+logging:
+  pattern:
+    level: "%5p [traceId=%X{traceId}]"
