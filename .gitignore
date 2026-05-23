@@ -1,43 +1,26 @@
-target/
-*.log
-*.class
-*.jar
-*.war
-*.ear
-
-# Maven wrapper
-.mvn/wrapper/maven-wrapper.jar
-
+# IntelliJ
 .idea/
 *.iml
-*.iws
-*.ipr
-out/
 
-.vscode/
+# Maven
+target/
 
-.DS_Store
-Thumbs.db
-
+# Logs
 logs/
 *.log
 
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
 .env
 
-docker-compose.override.yml
+# Docker
+*.pid
 
-*.pem
-*.key
-*.crt
+# VSCode
+.vscode/
 
-*.db
-
-/coverage/
-*.lcov
-
-frontend/**/node_modules/
-frontend/**/dist/
-
-infra/terraform/.terraform/
-infra/terraform/*.tfstate
-infra/terraform/*.tfstate.backup
+# Node
+node_modules/
