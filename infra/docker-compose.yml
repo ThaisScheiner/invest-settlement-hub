@@ -29,6 +29,21 @@ services:
     networks:
       - investment-network
 
+  mysql-statement:
+    image: mysql:8.0
+    container_name: mysql-statement-service
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: statement_db
+      MYSQL_USER: statement_user
+      MYSQL_PASSWORD: statement_pass
+    ports:
+      - "3309:3306"
+    volumes:
+      - mysql_statement_data:/var/lib/mysql
+    networks:
+      - investment-network
+
   localstack:
     image: localstack/localstack:latest
     container_name: localstack-investment
@@ -69,6 +84,7 @@ services:
 volumes:
   mysql_order_data:
   mysql_settlement_data:
+  mysql_statement_data:
 
 networks:
   investment-network:

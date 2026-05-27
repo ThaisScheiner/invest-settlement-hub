@@ -24,3 +24,7 @@ Thumbs.db
 
 # Node
 node_modules/
+
+# Local test files
+statement-message.json
+redrive-policy.json

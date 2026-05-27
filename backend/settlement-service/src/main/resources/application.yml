@@ -30,6 +30,7 @@ aws:
     endpoint: ${AWS_SQS_ENDPOINT:http://localhost:4566}
     order-created-queue-url: ${ORDER_CREATED_QUEUE_URL:http://localhost:4566/000000000000/order-created-queue}
     notification-queue-url: ${NOTIFICATION_QUEUE_URL:http://localhost:4566/000000000000/notification-queue}
+    statement-queue-url: ${STATEMENT_QUEUE_URL:http://localhost:4566/000000000000/statement-queue}
 
 springdoc:
   api-docs:

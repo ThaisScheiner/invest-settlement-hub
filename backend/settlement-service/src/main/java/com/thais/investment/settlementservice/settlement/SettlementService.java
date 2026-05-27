@@ -4,6 +4,7 @@ import com.thais.investment.settlementservice.exception.SettlementNotFoundExcept
 import com.thais.investment.settlementservice.messaging.NotificationEvent;
 import com.thais.investment.settlementservice.messaging.NotificationEventPublisher;
 import com.thais.investment.settlementservice.messaging.OrderCreatedEvent;
+import com.thais.investment.settlementservice.messaging.StatementEventPublisher;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,13 +22,16 @@ public class SettlementService {
 
     private final SettlementRepository repository;
     private final NotificationEventPublisher notificationEventPublisher;
+    private final StatementEventPublisher statementEventPublisher;
 
     public SettlementService(
             SettlementRepository repository,
-            NotificationEventPublisher notificationEventPublisher
+            NotificationEventPublisher notificationEventPublisher,
+            StatementEventPublisher statementEventPublisher
     ) {
         this.repository = repository;
         this.notificationEventPublisher = notificationEventPublisher;
+        this.statementEventPublisher = statementEventPublisher;
     }
 
     @CircuitBreaker(name = "settlementProcessor", fallbackMethod = "processFallback")
@@ -66,7 +70,7 @@ public class SettlementService {
                     fees
             );
 
-            publishNotification(savedSettlement);
+            publishDownstreamEvents(savedSettlement);
 
         } catch (Exception exception) {
             log.error("Error saving settlement for orderId={}", event.orderId(), exception);
@@ -84,8 +88,8 @@ public class SettlementService {
         throw new RuntimeException("Settlement processing unavailable", throwable);
     }
 
-    private void publishNotification(Settlement settlement) {
-        NotificationEvent notificationEvent = new NotificationEvent(
+    private void publishDownstreamEvents(Settlement settlement) {
+        NotificationEvent event = new NotificationEvent(
                 settlement.getId(),
                 settlement.getOrderId(),
                 settlement.getCustomerId(),
@@ -96,7 +100,8 @@ public class SettlementService {
                 "Liquidacao concluida com sucesso"
         );
 
-        notificationEventPublisher.publish(notificationEvent);
+        notificationEventPublisher.publish(event);
+        statementEventPublisher.publish(event);
     }
 
     public SettlementResponse findById(String id) {
