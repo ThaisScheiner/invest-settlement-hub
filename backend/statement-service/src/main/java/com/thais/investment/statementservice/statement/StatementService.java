@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Service
 public class StatementService {
@@ -66,6 +67,34 @@ public class StatementService {
                 statement.getCustomerId(),
                 statement.getDocumentKey()
         );
+    }
+
+    public StatementResponse findById(String id) {
+        Statement statement = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Statement not found: " + id));
+
+        return StatementResponse.fromEntity(statement);
+    }
+
+    public StatementResponse findBySettlementId(String settlementId) {
+        Statement statement = repository.findBySettlementId(settlementId)
+                .orElseThrow(() -> new RuntimeException("Statement not found for settlementId: " + settlementId));
+
+        return StatementResponse.fromEntity(statement);
+    }
+
+    public List<StatementResponse> findByCustomerId(String customerId) {
+        return repository.findByCustomerId(customerId)
+                .stream()
+                .map(StatementResponse::fromEntity)
+                .toList();
+    }
+
+    public List<StatementResponse> findByOrderId(String orderId) {
+        return repository.findByOrderId(orderId)
+                .stream()
+                .map(StatementResponse::fromEntity)
+                .toList();
     }
 
     private String generateDocumentKey(Statement statement) {

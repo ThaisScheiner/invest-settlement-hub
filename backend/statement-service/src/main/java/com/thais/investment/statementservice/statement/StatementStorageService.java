@@ -1,6 +1,7 @@
 package com.thais.investment.statementservice.statement;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thais.investment.statementservice.metrics.StatementMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,17 +20,25 @@ public class StatementStorageService {
 
     private final S3Client s3Client;
     private final ObjectMapper objectMapper;
+    private final StatementMetrics statementMetrics;
 
     @Value("${aws.s3.bucket-name}")
     private String bucketName;
 
-    public StatementStorageService(S3Client s3Client, ObjectMapper objectMapper) {
+    public StatementStorageService(
+            S3Client s3Client,
+            ObjectMapper objectMapper,
+            StatementMetrics statementMetrics
+    ) {
         this.s3Client = s3Client;
         this.objectMapper = objectMapper;
+        this.statementMetrics = statementMetrics;
     }
 
     public void uploadStatement(Statement statement) {
+
         try {
+
             String documentKey = statement.getDocumentKey();
 
             Map<String, Object> statementDocument = Map.of(
@@ -60,6 +69,8 @@ public class StatementStorageService {
                     RequestBody.fromString(content, StandardCharsets.UTF_8)
             );
 
+            statementMetrics.incrementS3UploadSuccess();
+
             log.info(
                     "Statement document uploaded to S3 successfully: bucket={}, documentKey={}",
                     bucketName,
@@ -67,13 +78,19 @@ public class StatementStorageService {
             );
 
         } catch (Exception exception) {
+
+            statementMetrics.incrementS3UploadError();
+
             log.error(
                     "Error uploading statement document to S3: statementId={}",
                     statement.getId(),
                     exception
             );
 
-            throw new RuntimeException("Error uploading statement document to S3", exception);
+            throw new RuntimeException(
+                    "Error uploading statement document to S3",
+                    exception
+            );
         }
     }
 }

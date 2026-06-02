@@ -28,3 +28,4 @@ node_modules/
 # Local test files
 statement-message.json
 redrive-policy.json
+invalid-statement-message.json

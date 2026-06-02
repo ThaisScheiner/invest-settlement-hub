@@ -1,6 +1,7 @@
 package com.thais.investment.statementservice.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thais.investment.statementservice.metrics.StatementMetrics;
 import com.thais.investment.statementservice.statement.StatementService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -26,6 +27,7 @@ public class StatementConsumer {
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
     private final StatementService statementService;
+    private final StatementMetrics statementMetrics;
 
     @Value("${aws.sqs.statement-queue-url}")
     private String statementQueueUrl;
@@ -35,11 +37,13 @@ public class StatementConsumer {
     public StatementConsumer(
             SqsClient sqsClient,
             ObjectMapper objectMapper,
-            StatementService statementService
+            StatementService statementService,
+            StatementMetrics statementMetrics
     ) {
         this.sqsClient = sqsClient;
         this.objectMapper = objectMapper;
         this.statementService = statementService;
+        this.statementMetrics = statementMetrics;
     }
 
     @PostConstruct
@@ -58,6 +62,7 @@ public class StatementConsumer {
 
     private void consumeMessages() {
         try {
+
             ReceiveMessageRequest request = ReceiveMessageRequest.builder()
                     .queueUrl(statementQueueUrl)
                     .maxNumberOfMessages(5)
@@ -71,13 +76,22 @@ public class StatementConsumer {
             }
 
         } catch (Exception exception) {
-            log.error("Error receiving statement messages from SQS", exception);
+
+            log.error(
+                    "Error receiving statement messages from SQS",
+                    exception
+            );
         }
     }
 
     private void processMessage(Message sqsMessage) {
+
         try {
-            log.info("Received statement event from SQS: messageId={}", sqsMessage.messageId());
+
+            log.info(
+                    "Received statement event from SQS: messageId={}",
+                    sqsMessage.messageId()
+            );
 
             SettlementCompletedEvent event = objectMapper.readValue(
                     sqsMessage.body(),
@@ -93,15 +107,27 @@ public class StatementConsumer {
 
             sqsClient.deleteMessage(deleteRequest);
 
-            log.info("Statement message processed and deleted from SQS: messageId={}", sqsMessage.messageId());
+            statementMetrics.incrementSuccess();
+
+            log.info(
+                    "Statement message processed and deleted from SQS: messageId={}",
+                    sqsMessage.messageId()
+            );
 
         } catch (Exception exception) {
-            log.error("Error processing statement message. Message will remain in queue.", exception);
+
+            statementMetrics.incrementError();
+
+            log.error(
+                    "Error processing statement message. Message will remain in queue.",
+                    exception
+            );
         }
     }
 
     @PreDestroy
     public void stopConsumer() {
+
         if (scheduler != null) {
             scheduler.shutdown();
         }
