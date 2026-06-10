@@ -1,5 +1,7 @@
 package com.thais.investment.statementservice.statement;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +20,19 @@ public class StatementController {
     @GetMapping("/{id}")
     public ResponseEntity<StatementResponse> findById(@PathVariable String id) {
         return ResponseEntity.ok(statementService.findById(id));
+    }
+
+    @GetMapping("/{id}/download")
+    public ResponseEntity<String> downloadStatement(@PathVariable String id) {
+        String content = statementService.downloadStatement(id);
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=statement-" + id + ".json"
+                )
+                .body(content);
     }
 
     @GetMapping("/settlement/{settlementId}")

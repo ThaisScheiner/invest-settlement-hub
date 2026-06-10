@@ -97,6 +97,13 @@ public class StatementService {
                 .toList();
     }
 
+    public String downloadStatement(String id) {
+        Statement statement = repository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Statement not found: " + id));
+
+        return storageService.downloadStatement(statement.getDocumentKey());
+    }
+
     private String generateDocumentKey(Statement statement) {
         return "statements/"
                 + statement.getCustomerId()

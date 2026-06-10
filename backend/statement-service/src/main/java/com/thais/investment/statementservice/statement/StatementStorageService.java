@@ -6,8 +6,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.nio.charset.StandardCharsets;
@@ -36,9 +39,7 @@ public class StatementStorageService {
     }
 
     public void uploadStatement(Statement statement) {
-
         try {
-
             String documentKey = statement.getDocumentKey();
 
             Map<String, Object> statementDocument = Map.of(
@@ -78,7 +79,6 @@ public class StatementStorageService {
             );
 
         } catch (Exception exception) {
-
             statementMetrics.incrementS3UploadError();
 
             log.error(
@@ -87,10 +87,40 @@ public class StatementStorageService {
                     exception
             );
 
-            throw new RuntimeException(
-                    "Error uploading statement document to S3",
+            throw new RuntimeException("Error uploading statement document to S3", exception);
+        }
+    }
+
+    public String downloadStatement(String documentKey) {
+        try {
+            GetObjectRequest request = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(documentKey)
+                    .build();
+
+            ResponseBytes<GetObjectResponse> responseBytes = s3Client.getObjectAsBytes(request);
+
+            String content = new String(
+                    responseBytes.asByteArray(),
+                    StandardCharsets.UTF_8
+            );
+
+            log.info(
+                    "Statement document downloaded from S3 successfully: bucket={}, documentKey={}",
+                    bucketName,
+                    documentKey
+            );
+
+            return content;
+
+        } catch (Exception exception) {
+            log.error(
+                    "Error downloading statement document from S3: documentKey={}",
+                    documentKey,
                     exception
             );
+
+            throw new RuntimeException("Error downloading statement document from S3", exception);
         }
     }
 }
