@@ -12,31 +12,32 @@ on:
       - master
 
 jobs:
-  build:
-    name: Build Java Microservices
-    runs-on: ubuntu-latest
+  gateway-service:
+    name: Build gateway-service
+    uses: ./.github/workflows/reusable-maven-build.yml
+    with:
+      service-path: backend/gateway-service
 
-    strategy:
-      fail-fast: false
-      matrix:
-        service:
-          - backend/gateway-service
-          - backend/order-service
-          - backend/settlement-service
-          - backend/notification-service
-          - backend/statement-service
+  order-service:
+    name: Build order-service
+    uses: ./.github/workflows/reusable-maven-build.yml
+    with:
+      service-path: backend/order-service
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  settlement-service:
+    name: Build settlement-service
+    uses: ./.github/workflows/reusable-maven-build.yml
+    with:
+      service-path: backend/settlement-service
 
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
+  notification-service:
+    name: Build notification-service
+    uses: ./.github/workflows/reusable-maven-build.yml
+    with:
+      service-path: backend/notification-service
 
-      - name: Build ${{ matrix.service }}
-        working-directory: ${{ matrix.service }}
-        run: mvn clean package -DskipTests
+  statement-service:
+    name: Build statement-service
+    uses: ./.github/workflows/reusable-maven-build.yml
+    with:
+      service-path: backend/statement-service
