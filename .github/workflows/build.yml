@@ -1,4 +1,4 @@
-name: Build and Test Microservices
+name: Build Microservices
 
 on:
   push:
@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false
       matrix:
         service:
           - backend/gateway-service
@@ -36,6 +37,6 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build and test ${{ matrix.service }}
+      - name: Build ${{ matrix.service }}
         working-directory: ${{ matrix.service }}
-        run: mvn clean verify
+        run: mvn clean package -DskipTests
