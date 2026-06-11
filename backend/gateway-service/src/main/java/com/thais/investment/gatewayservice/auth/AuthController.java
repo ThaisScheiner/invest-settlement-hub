@@ -1,20 +1,20 @@
 package com.thais.investment.gatewayservice.auth;
 
+import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("/auth")
@@ -29,9 +29,7 @@ public class AuthController {
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest request) {
 
-        if (!"thais".equals(request.username()) || !"123456".equals(request.password())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
-        }
+        UserAuthData userAuthData = authenticate(request);
 
         SecretKeySpec secretKey = new SecretKeySpec(
                 jwtSecret.getBytes(StandardCharsets.UTF_8),
@@ -48,8 +46,8 @@ public class AuthController {
                 .issuer("invest-settlement-hub")
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(3600))
-                .subject(request.username())
-                .claim("scope", "USER")
+                .subject(userAuthData.username())
+                .claim("roles", userAuthData.roles())
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
@@ -58,6 +56,45 @@ public class AuthController {
                 JwtEncoderParameters.from(header, claims)
         ).getTokenValue();
 
-        return new LoginResponse(token);
+        return new LoginResponse(
+                token,
+                "Bearer",
+                userAuthData.roles()
+        );
+    }
+
+    private UserAuthData authenticate(LoginRequest request) {
+
+        if ("customer".equals(request.username()) && "customer123".equals(request.password())) {
+            return new UserAuthData(
+                    "customer",
+                    List.of("ROLE_CUSTOMER")
+            );
+        }
+
+        if ("platform".equals(request.username()) && "platform123".equals(request.password())) {
+            return new UserAuthData(
+                    "platform",
+                    List.of("ROLE_PLATFORM_ENGINEER")
+            );
+        }
+
+        if ("admin".equals(request.username()) && "admin123".equals(request.password())) {
+            return new UserAuthData(
+                    "admin",
+                    List.of("ROLE_ADMIN")
+            );
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.UNAUTHORIZED,
+                "Invalid credentials"
+        );
+    }
+
+    private record UserAuthData(
+            String username,
+            List<String> roles
+    ) {
     }
 }

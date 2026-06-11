@@ -52,4 +52,5 @@ logging:
     level: "%5p [traceId=%X{traceId}]"
 
 jwt:
-  secret: ${JWT_SECRET:minha-chave-super-secreta-invest-1234567890}~~
+  secret: "invest-settlement-hub-secret-key-2026-platform-engineering"
+  expiration-minutes: 60
