@@ -17,27 +17,32 @@ jobs:
     uses: ./.github/workflows/reusable-maven-build.yml
     with:
       service-path: backend/gateway-service
+      artifact-name: gateway-service-jar
 
   order-service:
     name: Build order-service
     uses: ./.github/workflows/reusable-maven-build.yml
     with:
       service-path: backend/order-service
+      artifact-name: order-service-jar
 
   settlement-service:
     name: Build settlement-service
     uses: ./.github/workflows/reusable-maven-build.yml
     with:
       service-path: backend/settlement-service
+      artifact-name: settlement-service-jar
 
   notification-service:
     name: Build notification-service
     uses: ./.github/workflows/reusable-maven-build.yml
     with:
       service-path: backend/notification-service
+      artifact-name: notification-service-jar
 
   statement-service:
     name: Build statement-service
     uses: ./.github/workflows/reusable-maven-build.yml
     with:
       service-path: backend/statement-service
+      artifact-name: statement-service-jar

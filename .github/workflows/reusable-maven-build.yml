@@ -6,6 +6,9 @@ on:
       service-path:
         required: true
         type: string
+      artifact-name:
+        required: true
+        type: string
 
 jobs:
   maven-build:
@@ -30,5 +33,5 @@ jobs:
       - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.service-path }}-jar
+          name: ${{ inputs.artifact-name }}
           path: ${{ inputs.service-path }}/target/*.jar
