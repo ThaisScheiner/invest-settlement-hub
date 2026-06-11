@@ -26,3 +26,9 @@ jobs:
       - name: Build service
         working-directory: ${{ inputs.service-path }}
         run: mvn clean package -DskipTests
+
+      - name: Upload JAR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.service-path }}-jar
+          path: ${{ inputs.service-path }}/target/*.jar
