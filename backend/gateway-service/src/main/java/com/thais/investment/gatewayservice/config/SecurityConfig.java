@@ -1,53 +1,76 @@
 package com.thais.investment.gatewayservice.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
-import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
+import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 
 @Configuration
 @EnableWebFluxSecurity
 public class SecurityConfig {
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
+
         return http
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
-                .authorizeExchange(exchanges -> exchanges
-                        .pathMatchers(
-                                "/actuator/**",
-                                "/auth/**"
-                        ).permitAll()
+                .authorizeExchange(exchange -> exchange
+
+                        // Autenticação
+                        .pathMatchers("/auth/**").permitAll()
+
+                        // Actuator/Prometheus: apenas plataforma/admin
+                        .pathMatchers("/actuator/**").hasAnyRole("PLATFORM_ENGINEER", "ADMIN")
+
+                        // Orders
+                        .pathMatchers(HttpMethod.POST, "/orders/**")
+                        .hasAnyRole("CUSTOMER", "ADMIN")
+
+                        .pathMatchers(HttpMethod.GET, "/orders/**")
+                        .hasAnyRole("CUSTOMER", "ADMIN", "PLATFORM_ENGINEER")
+
+                        // Settlements
+                        .pathMatchers(HttpMethod.GET, "/settlements/**")
+                        .hasAnyRole("CUSTOMER", "ADMIN", "PLATFORM_ENGINEER")
+
+                        // Statements
+                        .pathMatchers(HttpMethod.GET, "/statements/**")
+                        .hasAnyRole("CUSTOMER", "ADMIN", "PLATFORM_ENGINEER")
+
+                        // Qualquer outra rota exige autenticação
                         .anyExchange().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 ->
-                        oauth2.jwt(Customizer.withDefaults())
-                )
+                .httpBasic(Customizer.withDefaults())
                 .build();
     }
 
     @Bean
-    public ReactiveJwtDecoder reactiveJwtDecoder() {
-        SecretKeySpec secretKey = new SecretKeySpec(
-                jwtSecret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256"
-        );
+    public MapReactiveUserDetailsService users() {
 
-        return NimbusReactiveJwtDecoder
-                .withSecretKey(secretKey)
-                .macAlgorithm(MacAlgorithm.HS256)
+        UserDetails customer = User.withDefaultPasswordEncoder()
+                .username("customer")
+                .password("customer123")
+                .roles("CUSTOMER")
                 .build();
+
+        UserDetails platform = User.withDefaultPasswordEncoder()
+                .username("platform")
+                .password("platform123")
+                .roles("PLATFORM_ENGINEER")
+                .build();
+
+        UserDetails admin = User.withDefaultPasswordEncoder()
+                .username("admin")
+                .password("admin123")
+                .roles("ADMIN")
+                .build();
+
+        return new MapReactiveUserDetailsService(customer, platform, admin);
     }
 }
