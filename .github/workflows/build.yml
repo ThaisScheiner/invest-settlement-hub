@@ -18,6 +18,7 @@ jobs:
     with:
       service-path: backend/gateway-service
       artifact-name: gateway-service-jar
+      docker-image-name: invest-settlement-hub/gateway-service
 
   order-service:
     name: Build order-service
@@ -25,6 +26,7 @@ jobs:
     with:
       service-path: backend/order-service
       artifact-name: order-service-jar
+      docker-image-name: invest-settlement-hub/order-service
 
   settlement-service:
     name: Build settlement-service
@@ -32,6 +34,7 @@ jobs:
     with:
       service-path: backend/settlement-service
       artifact-name: settlement-service-jar
+      docker-image-name: invest-settlement-hub/settlement-service
 
   notification-service:
     name: Build notification-service
@@ -39,6 +42,7 @@ jobs:
     with:
       service-path: backend/notification-service
       artifact-name: notification-service-jar
+      docker-image-name: invest-settlement-hub/notification-service
 
   statement-service:
     name: Build statement-service
@@ -46,3 +50,4 @@ jobs:
     with:
       service-path: backend/statement-service
       artifact-name: statement-service-jar
+      docker-image-name: invest-settlement-hub/statement-service

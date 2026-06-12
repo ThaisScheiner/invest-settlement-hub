@@ -6,13 +6,18 @@ on:
       service-path:
         required: true
         type: string
+
       artifact-name:
+        required: true
+        type: string
+
+      docker-image-name:
         required: true
         type: string
 
 jobs:
   maven-build:
-    name: Maven Build
+    name: Maven Build and Docker Build
     runs-on: ubuntu-latest
 
     steps:
@@ -35,3 +40,7 @@ jobs:
         with:
           name: ${{ inputs.artifact-name }}
           path: ${{ inputs.service-path }}/target/*.jar
+
+      - name: Build Docker image
+        working-directory: ${{ inputs.service-path }}
+        run: docker build -t ${{ inputs.docker-image-name }}:latest .
