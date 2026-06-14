@@ -5,6 +5,7 @@ import com.thais.investment.settlementservice.messaging.NotificationEvent;
 import com.thais.investment.settlementservice.messaging.NotificationEventPublisher;
 import com.thais.investment.settlementservice.messaging.OrderCreatedEvent;
 import com.thais.investment.settlementservice.messaging.StatementEventPublisher;
+import com.thais.investment.settlementservice.metrics.SettlementMetrics;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,15 +24,18 @@ public class SettlementService {
     private final SettlementRepository repository;
     private final NotificationEventPublisher notificationEventPublisher;
     private final StatementEventPublisher statementEventPublisher;
+    private final SettlementMetrics settlementMetrics;
 
     public SettlementService(
             SettlementRepository repository,
             NotificationEventPublisher notificationEventPublisher,
-            StatementEventPublisher statementEventPublisher
+            StatementEventPublisher statementEventPublisher,
+            SettlementMetrics settlementMetrics
     ) {
         this.repository = repository;
         this.notificationEventPublisher = notificationEventPublisher;
         this.statementEventPublisher = statementEventPublisher;
+        this.settlementMetrics = settlementMetrics;
     }
 
     @CircuitBreaker(name = "settlementProcessor", fallbackMethod = "processFallback")
@@ -63,6 +67,8 @@ public class SettlementService {
         try {
             Settlement savedSettlement = repository.save(settlement);
 
+            settlementMetrics.incrementSettlementProcessed();
+
             log.info(
                     "Settlement completed for orderId={}, netAmount={}, fees={}",
                     event.orderId(),
@@ -73,12 +79,16 @@ public class SettlementService {
             publishDownstreamEvents(savedSettlement);
 
         } catch (Exception exception) {
+            settlementMetrics.incrementSettlementProcessingError();
+
             log.error("Error saving settlement for orderId={}", event.orderId(), exception);
             throw exception;
         }
     }
 
     public void processFallback(OrderCreatedEvent event, Throwable throwable) {
+        settlementMetrics.incrementSettlementProcessingError();
+
         log.error(
                 "Circuit breaker fallback executed for orderId={}. reason={}",
                 event.orderId(),

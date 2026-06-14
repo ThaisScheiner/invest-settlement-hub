@@ -1,6 +1,7 @@
 package com.thais.investment.settlementservice.messaging;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thais.investment.settlementservice.metrics.SettlementMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,13 +16,19 @@ public class NotificationEventPublisher {
 
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
+    private final SettlementMetrics settlementMetrics;
 
     @Value("${aws.sqs.notification-queue-url}")
     private String notificationQueueUrl;
 
-    public NotificationEventPublisher(SqsClient sqsClient, ObjectMapper objectMapper) {
+    public NotificationEventPublisher(
+            SqsClient sqsClient,
+            ObjectMapper objectMapper,
+            SettlementMetrics settlementMetrics
+    ) {
         this.sqsClient = sqsClient;
         this.objectMapper = objectMapper;
+        this.settlementMetrics = settlementMetrics;
     }
 
     public void publish(NotificationEvent event) {
@@ -34,6 +41,8 @@ public class NotificationEventPublisher {
                     .build();
 
             sqsClient.sendMessage(request);
+
+            settlementMetrics.incrementNotificationEventPublished();
 
             log.info(
                     "Notification event published successfully: orderId={}, customerId={}, queueUrl={}",
