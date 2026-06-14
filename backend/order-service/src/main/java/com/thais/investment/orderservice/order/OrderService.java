@@ -3,12 +3,14 @@ package com.thais.investment.orderservice.order;
 import com.thais.investment.orderservice.exception.OrderNotFoundException;
 import com.thais.investment.orderservice.messaging.OrderCreatedEvent;
 import com.thais.investment.orderservice.messaging.OrderEventPublisher;
+import com.thais.investment.orderservice.metrics.OrderMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class OrderService {
@@ -17,67 +19,89 @@ public class OrderService {
 
     private final OrderRepository repository;
     private final OrderEventPublisher publisher;
+    private final OrderMetrics orderMetrics;
 
-    public OrderService(OrderRepository repository, OrderEventPublisher publisher) {
+    public OrderService(
+            OrderRepository repository,
+            OrderEventPublisher publisher,
+            OrderMetrics orderMetrics
+    ) {
         this.repository = repository;
         this.publisher = publisher;
+        this.orderMetrics = orderMetrics;
     }
 
     public OrderResponse create(OrderRequest request) {
-        log.info(
-                "Creating order: customerId={}, assetCode={}, operationType={}, quantity={}, unitPrice={}",
-                request.getCustomerId(),
-                request.getAssetCode(),
-                request.getOperationType(),
-                request.getQuantity(),
-                request.getUnitPrice()
-        );
+        try {
+            log.info(
+                    "Creating order: customerId={}, assetCode={}, operationType={}, quantity={}, unitPrice={}",
+                    request.getCustomerId(),
+                    request.getAssetCode(),
+                    request.getOperationType(),
+                    request.getQuantity(),
+                    request.getUnitPrice()
+            );
 
-        BigDecimal totalAmount = request.getUnitPrice()
-                .multiply(BigDecimal.valueOf(request.getQuantity()));
+            BigDecimal totalAmount = request.getUnitPrice()
+                    .multiply(BigDecimal.valueOf(request.getQuantity()));
 
-        Order order = Order.builder()
-                .customerId(request.getCustomerId())
-                .assetCode(request.getAssetCode().toUpperCase())
-                .operationType(request.getOperationType())
-                .quantity(request.getQuantity())
-                .unitPrice(request.getUnitPrice())
-                .totalAmount(totalAmount)
-                .status(OrderStatus.CREATED)
-                .build();
+            Order order = Order.builder()
+                    .customerId(request.getCustomerId())
+                    .assetCode(request.getAssetCode().toUpperCase())
+                    .operationType(request.getOperationType())
+                    .quantity(request.getQuantity())
+                    .unitPrice(request.getUnitPrice())
+                    .totalAmount(totalAmount)
+                    .status(OrderStatus.CREATED)
+                    .build();
 
-        Order savedOrder = repository.save(order);
+            Order savedOrder = repository.save(order);
 
-        log.info(
-                "Order created successfully: orderId={}, customerId={}, totalAmount={}",
-                savedOrder.getId(),
-                savedOrder.getCustomerId(),
-                savedOrder.getTotalAmount()
-        );
+            orderMetrics.incrementOrderCreated();
 
-        String correlationId = java.util.UUID.randomUUID().toString();
+            log.info(
+                    "Order created successfully: orderId={}, customerId={}, totalAmount={}",
+                    savedOrder.getId(),
+                    savedOrder.getCustomerId(),
+                    savedOrder.getTotalAmount()
+            );
 
-        OrderCreatedEvent event = new OrderCreatedEvent(
-                correlationId,
-                savedOrder.getId(),
-                savedOrder.getCustomerId(),
-                savedOrder.getAssetCode(),
-                savedOrder.getOperationType().name(),
-                savedOrder.getQuantity(),
-                savedOrder.getUnitPrice(),
-                savedOrder.getTotalAmount(),
-                savedOrder.getCreatedAt()
-        );
+            String correlationId = UUID.randomUUID().toString();
 
-        log.info(
-                "Publishing order event: correlationId={}, orderId={}",
-                correlationId,
-                savedOrder.getId()
-        );
+            OrderCreatedEvent event = new OrderCreatedEvent(
+                    correlationId,
+                    savedOrder.getId(),
+                    savedOrder.getCustomerId(),
+                    savedOrder.getAssetCode(),
+                    savedOrder.getOperationType().name(),
+                    savedOrder.getQuantity(),
+                    savedOrder.getUnitPrice(),
+                    savedOrder.getTotalAmount(),
+                    savedOrder.getCreatedAt()
+            );
 
-        publisher.publish(event);
+            log.info(
+                    "Publishing order event: correlationId={}, orderId={}",
+                    correlationId,
+                    savedOrder.getId()
+            );
 
-        return OrderResponse.fromEntity(savedOrder);
+            publisher.publish(event);
+
+            return OrderResponse.fromEntity(savedOrder);
+
+        } catch (Exception exception) {
+            orderMetrics.incrementOrderCreationError();
+
+            log.error(
+                    "Error creating order: customerId={}, assetCode={}",
+                    request.getCustomerId(),
+                    request.getAssetCode(),
+                    exception
+            );
+
+            throw exception;
+        }
     }
 
     public OrderResponse findById(String id) {
