@@ -1,6 +1,7 @@
 package com.thais.investment.notificationservice.notification;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.thais.investment.notificationservice.metrics.NotificationMetrics;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
@@ -24,15 +25,21 @@ public class NotificationConsumer {
 
     private final SqsClient sqsClient;
     private final ObjectMapper objectMapper;
+    private final NotificationMetrics notificationMetrics;
 
     @Value("${aws.sqs.notification-queue-url}")
     private String notificationQueueUrl;
 
     private ScheduledExecutorService scheduler;
 
-    public NotificationConsumer(SqsClient sqsClient, ObjectMapper objectMapper) {
+    public NotificationConsumer(
+            SqsClient sqsClient,
+            ObjectMapper objectMapper,
+            NotificationMetrics notificationMetrics
+    ) {
         this.sqsClient = sqsClient;
         this.objectMapper = objectMapper;
+        this.notificationMetrics = notificationMetrics;
     }
 
     @PostConstruct
@@ -64,6 +71,8 @@ public class NotificationConsumer {
             }
 
         } catch (Exception exception) {
+            notificationMetrics.incrementNotificationError();
+
             log.error("Error receiving notification messages from SQS", exception);
         }
     }
@@ -71,6 +80,8 @@ public class NotificationConsumer {
     private void processMessage(Message sqsMessage) {
         try {
             log.info("Received notification event from SQS: messageId={}", sqsMessage.messageId());
+
+            notificationMetrics.incrementNotificationReceived();
 
             NotificationEvent event = objectMapper.readValue(
                     sqsMessage.body(),
@@ -88,6 +99,8 @@ public class NotificationConsumer {
                     event.message()
             );
 
+            notificationMetrics.incrementNotificationSent();
+
             DeleteMessageRequest deleteRequest = DeleteMessageRequest.builder()
                     .queueUrl(notificationQueueUrl)
                     .receiptHandle(sqsMessage.receiptHandle())
@@ -98,6 +111,8 @@ public class NotificationConsumer {
             log.info("Notification message processed and deleted from SQS: messageId={}", sqsMessage.messageId());
 
         } catch (Exception exception) {
+            notificationMetrics.incrementNotificationError();
+
             log.error("Error processing notification message. Message will remain in queue.", exception);
         }
     }
