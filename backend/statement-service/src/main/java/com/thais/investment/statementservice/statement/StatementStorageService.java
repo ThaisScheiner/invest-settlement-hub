@@ -105,6 +105,8 @@ public class StatementStorageService {
                     StandardCharsets.UTF_8
             );
 
+            statementMetrics.incrementDownloadSuccess();
+
             log.info(
                     "Statement document downloaded from S3 successfully: bucket={}, documentKey={}",
                     bucketName,
@@ -114,6 +116,8 @@ public class StatementStorageService {
             return content;
 
         } catch (Exception exception) {
+            statementMetrics.incrementDownloadError();
+
             log.error(
                     "Error downloading statement document from S3: documentKey={}",
                     documentKey,
