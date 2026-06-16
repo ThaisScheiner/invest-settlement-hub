@@ -29,3 +29,12 @@ node_modules/
 statement-message.json
 redrive-policy.json
 invalid-statement-message.json
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
