@@ -1,29 +1,32 @@
 # Invest Settlement Hub
 
-Plataforma distribuída de liquidação financeira inspirada em fluxos reais utilizados por bancos, corretoras e instituições financeiras modernas.
+Sistema distribuído de liquidação financeira inspirado em arquiteturas utilizadas por bancos digitais, corretoras e plataformas de investimento.
 
-O objetivo deste projeto é demonstrar conhecimentos avançados em arquitetura de microsserviços, mensageria assíncrona, observabilidade, resiliência, segurança e sistemas cloud-native utilizando Java 21 e ecossistema Spring.
+O projeto demonstra a implementação de uma plataforma orientada a eventos utilizando microsserviços, processamento assíncrono, observabilidade, segurança, infraestrutura como código e integração com serviços AWS.
 
 ---
 
 # Visão Geral
 
-O sistema simula o fluxo completo de processamento de investimentos, incluindo:
+O Invest Settlement Hub simula o fluxo completo de processamento de ordens financeiras, desde a criação da ordem até a geração do comprovante de liquidação.
 
-- Recebimento de ordens de compra e venda
-- Processamento assíncrono de liquidação financeira
-- Publicação de eventos entre microsserviços
-- Notificações distribuídas
-- Rastreabilidade distribuída
-- Observabilidade e monitoramento
-- Segurança com JWT
-- Comunicação orientada a eventos
+Principais características:
 
-A arquitetura foi construída seguindo princípios utilizados em sistemas financeiros de alta disponibilidade e alta escalabilidade.
+* Arquitetura de Microsserviços
+* Event-Driven Architecture
+* Processamento Assíncrono
+* API Gateway
+* JWT Authentication
+* AWS SQS
+* AWS S3
+* LocalStack
+* Observabilidade Completa
+* Infraestrutura como Código
+* CI/CD com GitHub Actions
 
 ---
 
-# Arquitetura da Aplicação
+# Arquitetura
 
 ```text
 Cliente
@@ -35,13 +38,23 @@ API Gateway
 Order Service
    │
    ▼
-AWS SQS (LocalStack)
+order-created-queue
    │
    ▼
 Settlement Service
    │
-   ▼
-Notification Service
+   ├──────────────► notification-queue
+   │                     │
+   │                     ▼
+   │             Notification Service
+   │
+   └──────────────► statement-queue
+                         │
+                         ▼
+                 Statement Service
+                         │
+                         ▼
+                       AWS S3
 
 Observabilidade:
 - Zipkin
@@ -53,86 +66,78 @@ Observabilidade:
 
 # Microsserviços
 
-## API Gateway
+## Gateway Service
 
 Responsável por:
 
-- Autenticação JWT
-- Roteamento das requisições
-- Centralização de acesso
-- Segurança entre serviços
-- Distributed tracing
+* Autenticação JWT
+* Controle de acesso baseado em roles
+* Roteamento centralizado
+* Distributed Tracing
+
+### Roles
+
+* CUSTOMER
+* PLATFORM_ENGINEER
+* ADMIN
 
 ### Tecnologias
 
-- Spring Cloud Gateway
-- Spring Security
-- JWT
-- Micrometer
-- Zipkin
+* Spring Cloud Gateway
+* Spring Security
+* JWT
+* Micrometer
+* Zipkin
 
 ---
 
 ## Order Service
 
-Responsável pelo registro de ordens de investimento.
+Responsável pelo registro das ordens financeiras.
 
 ### Funcionalidades
 
-- Cadastro de ordens
-- Consulta de ordens
-- Publicação de eventos no SQS
-- Logs estruturados
-- Correlation ID
-
-### Fluxo
-
-1. Cliente envia ordem
-2. Ordem é persistida no MySQL
-3. Evento é publicado no SQS
-4. Settlement Service consome o evento
+* Cadastro de ordens
+* Consulta de ordens
+* Persistência em MySQL
+* Publicação de eventos SQS
+* Correlation ID
+* Logs estruturados
 
 ### Tecnologias
 
-- Java 21
-- Spring Boot
-- MySQL
-- AWS SQS
-- Docker
-- JPA/Hibernate
-- Swagger/OpenAPI
+* Java 21
+* Spring Boot
+* Spring Data JPA
+* MySQL
+* AWS SQS
+* Docker
+* Swagger/OpenAPI
 
 ---
 
 ## Settlement Service
 
-Responsável pela liquidação financeira assíncrona.
+Responsável pelo processamento financeiro das ordens.
 
 ### Funcionalidades
 
-- Consumo de eventos do SQS
-- Cálculo financeiro
-- Aplicação de taxas
-- Retry com backoff
-- Idempotência
-- Dead Letter Queue (DLQ)
-- Publicação de eventos de liquidação
-
-### Fluxo
-
-1. Consome evento do SQS
-2. Processa liquidação
-3. Salva resultado
-4. Publica evento para notification-service
+* Consumo de eventos do SQS
+* Liquidação financeira
+* Cálculo de taxas
+* Idempotência
+* Circuit Breaker
+* Retry
+* Publicação de eventos downstream
 
 ### Tecnologias
 
-- Java 21
-- Spring Boot
-- AWS SQS
-- Resilience4j
-- MySQL
-- Docker
+* Java 21
+* Spring Boot
+* MySQL
+* AWS SQS
+* Resilience4j
+* Docker
 
 ---
 
@@ -142,99 +147,155 @@ Responsável pelo processamento de notificações assíncronas.
 
 ### Funcionalidades
 
-- Consumo de mensagens via SQS
-- Simulação de envio de notificações
-- Logs distribuídos
-- Rastreamento completo da operação
+* Consumo de eventos SQS
+* Simulação de notificações
+* Logs distribuídos
+* Métricas de processamento
 
 ### Tecnologias
 
-- Java 21
-- Spring Boot
-- AWS SQS
-- LocalStack
+* Java 21
+* Spring Boot
+* AWS SQS
+* LocalStack
 
 ---
 
-# Observabilidade
+## Statement Service
 
-A aplicação possui stack completa de observabilidade.
+Responsável pela geração e armazenamento de comprovantes de liquidação.
 
-## Zipkin
+### Funcionalidades
 
-Responsável pelo distributed tracing entre os microsserviços.
+* Consumo de eventos SQS
+* Geração de comprovantes
+* Persistência em banco
+* Upload para AWS S3
+* Download de comprovantes
+* Métricas customizadas
 
-Permite rastrear:
+### Tecnologias
 
-- Fluxo completo da requisição
-- Tempo entre serviços
-- Correlation IDs
-- Latência distribuída
-
-### URL
-
-```bash
-http://localhost:9411
-```
-
----
-
-## Prometheus
-
-Responsável pela coleta de métricas.
-
-### Métricas monitoradas
-
-- Requests HTTP
-- Latência
-- JVM Metrics
-- Uso de memória
-- Uso de CPU
-
-### URL
-
-```bash
-http://localhost:9090
-```
-
----
-
-## Grafana
-
-Responsável pela visualização das métricas.
-
-### URL
-
-```bash
-http://localhost:3000
-```
+* Java 21
+* Spring Boot
+* MySQL
+* AWS S3
+* LocalStack
 
 ---
 
 # Segurança
 
-O sistema utiliza autenticação JWT.
+Autenticação centralizada utilizando JWT.
 
-## Funcionalidades
+### Funcionalidades
 
-- Login autenticado
-- Geração de token JWT
-- Proteção de endpoints
-- Validação centralizada no gateway
+* Login autenticado
+* Geração de token JWT
+* Proteção de endpoints
+* Controle de acesso por roles
 
 ---
 
-# Arquitetura Event-Driven
+# Observabilidade
 
-A comunicação entre serviços ocorre de forma assíncrona utilizando mensageria.
+## Zipkin
 
-## Benefícios
+Distributed Tracing entre microsserviços.
 
-- Baixo acoplamento
-- Escalabilidade
-- Resiliência
-- Processamento assíncrono
-- Tolerância a falhas
+URL:
+
+http://localhost:9411
+
+---
+
+## Prometheus
+
+Coleta de métricas da aplicação.
+
+URL:
+
+http://localhost:9090
+
+Métricas monitoradas:
+
+* Requests HTTP
+* JVM Metrics
+* CPU
+* Memória
+* Métricas customizadas
+
+---
+
+## Grafana
+
+Visualização de métricas e dashboards.
+
+URL:
+
+http://localhost:3000
+
+---
+
+# Métricas Customizadas
+
+Statement Service:
+
+* statement_processing_success_total
+* statement_processing_error_total
+* statement_s3_upload_success_total
+* statement_s3_upload_error_total
+
+---
+
+# Infraestrutura
+
+## Docker
+
+Todos os microsserviços possuem Dockerfile dedicado.
+
+### Serviços de Infraestrutura
+
+* MySQL
+* LocalStack
+* Zipkin
+* Prometheus
+* Grafana
+
+---
+
+## Terraform
+
+Infraestrutura AWS provisionada automaticamente.
+
+### Recursos Provisionados
+
+SQS
+
+* order-created-queue
+* order-created-dlq
+* notification-queue
+* statement-queue
+* statement-dlq
+
+S3
+
+* investment-statements
+
+Com Terraform não é necessário criar recursos manualmente.
+
+---
+
+# CI/CD
+
+Pipeline automatizada utilizando GitHub Actions.
+
+### Funcionalidades
+
+* Build automático
+* Maven Build Reutilizável
+* Java 21
+* Validação de Pull Requests
 
 ---
 
@@ -242,217 +303,147 @@ A comunicação entre serviços ocorre de forma assíncrona utilizando mensageri
 
 ## Backend
 
-- Java 21
-- Spring Boot
-- Spring Security
-- Spring Cloud Gateway
-- Spring Data JPA
-- Hibernate
-- Maven
+* Java 21
+* Spring Boot 3
+* Spring Security
+* Spring Cloud Gateway
+* Spring Data JPA
+* Hibernate
+* Maven
 
 ## Banco de Dados
 
-- MySQL
+* MySQL
 
-## Cloud / Mensageria
+## Mensageria
 
-- AWS SQS
-- AWS SNS
-- LocalStack
+* AWS SQS
+* AWS SNS
+* LocalStack
+
+## Armazenamento
+
+* AWS S3
+* LocalStack
 
 ## Observabilidade
 
-- Zipkin
-- Prometheus
-- Grafana
-- Micrometer
+* Prometheus
+* Grafana
+* Zipkin
+* Micrometer
 
 ## Infraestrutura
 
-- Docker
-- Docker Compose
+* Docker
+* Docker Compose
+* Terraform
+
+## DevOps
+
+* GitHub Actions
 
 ## Testes
 
-- JUnit
-- Mockito
+* JUnit 5
+* Mockito
 
 ---
 
 # Estrutura do Projeto
 
 ```text
-invest-settlement-hub/
+invest-settlement-hub
 │
-├── backend/
-│   ├── gateway-service/
-│   ├── order-service/
-│   ├── settlement-service/
-│   └── notification-service/
+├── backend
+│   ├── gateway-service
+│   ├── order-service
+│   ├── settlement-service
+│   ├── notification-service
+│   └── statement-service
 │
-├── infra/
+├── infra
 │   ├── docker-compose.yml
-│   ├── prometheus/
-│   └── grafana/
+│   ├── terraform
+│   ├── prometheus
+│   └── grafana
 │
-└── README.md
+└── .github
+    └── workflows
 ```
 
 ---
 
-# Como Executar o Projeto
+# Como Executar
 
 ## Pré-requisitos
 
-- Java 21
-- Docker Desktop
-- Maven
-- AWS CLI
-- Git
+* Java 21
+* Maven
+* Docker Desktop
+* Terraform
+* AWS CLI
+* Git
 
 ---
 
-# 1. Clonar o Repositório
+## Subir Infraestrutura
 
 ```bash
-git clone https://github.com/SEU-USUARIO/invest-settlement-hub.git
-```
-
----
-
-# 2. Subir Infraestrutura
-
-```bash
-cd infra
-
 docker compose up -d
 ```
 
 ---
 
-# 3. Executar Microsserviços
+## Provisionar Recursos AWS LocalStack
+
+```bash
+cd infra/terraform
+
+terraform init
+terraform apply
+```
+
+---
+
+## Executar Microsserviços
+
+```bash
+mvn spring-boot:run
+```
 
 Executar individualmente:
 
-- gateway-service
-- order-service
-- settlement-service
-- notification-service
+* gateway-service
+* order-service
+* settlement-service
+* notification-service
+* statement-service
 
 ---
 
-# 4. Criar Filas SQS
+# Fluxo da Aplicação
 
-```bash
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name order-created-queue
-```
-
-```bash
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name order-created-dlq
-```
-
-```bash
-aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name notification-queue
-```
+1. Cliente cria uma ordem
+2. Order Service persiste a ordem
+3. Evento é publicado no SQS
+4. Settlement Service processa a liquidação
+5. Notification Service recebe evento de notificação
+6. Statement Service gera comprovante
+7. Comprovante é armazenado no S3
+8. Métricas são enviadas ao Prometheus
+9. Traces são enviados ao Zipkin
 
 ---
 
-# 5. Testar Aplicação
+# Próximas Evoluções
 
-## Criar Ordem
-
-```http
-POST /orders
-```
-
-### Exemplo
-
-```json
-{
-  "customerId": "customer-1",
-  "assetCode": "PETR4",
-  "operationType": "BUY",
-  "quantity": 10,
-  "unitPrice": 30.00
-}
-```
-
----
-
-# Fluxo Completo
-
-## 1. Order Service
-
-- Recebe requisição
-- Salva ordem
-- Publica evento
-
-## 2. Settlement Service
-
-- Consome evento
-- Processa liquidação
-- Aplica taxas
-- Publica notificação
-
-## 3. Notification Service
-
-- Consome evento
-- Processa notificação
-- Finaliza fluxo
-
----
-
-# Funcionalidades Implementadas
-
-- Microsserviços
-- JWT Authentication
-- API Gateway
-- Event-Driven Architecture
-- AWS SQS
-- Retry com Backoff
-- DLQ
-- Idempotência
-- Distributed Tracing
-- Observabilidade
-- Logs Estruturados
-- Dockerização
-- Comunicação Assíncrona
-- Monitoramento
-- Correlation IDs
-
----
-
-# Roadmap Futuro
-
-## Próximas Implementações
-
-- Kubernetes
-- CI/CD com GitHub Actions
-- Terraform
-- ECS Deployment
-- OpenTelemetry
-- Kafka
-- Statement Service
-- Upload de documentos para S3
-- Frontend Angular 19
-- Testcontainers
-- Testes de integração distribuída
-
----
-
-# Objetivo do Projeto
-
-Este projeto foi desenvolvido com foco em:
-
-- Arquitetura distribuída
-- Sistemas financeiros
-- Cloud-native applications
-- Microsserviços modernos
-- Resiliência
-- Observabilidade
-- Event-driven systems
-
-Inspirado em arquiteturas utilizadas por fintechs, bancos digitais e plataformas de investimento.
+* Kubernetes
+* Testcontainers
+* OpenTelemetry
+* Deploy em AWS
+* Dashboards avançados Grafana
+* Testes de integração distribuída
 
 ---
 
@@ -460,24 +451,18 @@ Inspirado em arquiteturas utilizadas por fintechs, bancos digitais e plataformas
 
 ## Thais Scheiner
 
-Desenvolvedora Full Stack focada em:
+Desenvolvedora Full Stack com foco em:
 
-- Java
-- Microsserviços
-- Cloud
-- Sistemas Distribuídos
-- Arquitetura Backend
-- AWS
-- Observabilidade
+* Java
+* Spring Boot
+* Microsserviços
+* AWS
+* Arquitetura Backend
+* Sistemas Distribuídos
+* Observabilidade
+* DevOps
 
-### LinkedIn
-
-```text
+LinkedIn:
 https://www.linkedin.com/in/thaisscheiner/
-```
 
-### GitHub
 
-```text
-https://github.com/ThaisScheiner
-```
